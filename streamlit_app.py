@@ -792,12 +792,30 @@ def main():
         )
         st.stop()
 
-    with st.sidebar.expander("Loaded files", expanded=False):
+    with st.sidebar.expander("Loaded files", expanded=True):
         for name, source in loaded_from.items():
             st.write(f"**{name}**: {source}")
 
-    findings, samples, data = compute_findings(raw_data, accident_year)
-    missing_df = missing_profile(data)
+    st.success("The four required datasets were found. The report can now run the quality checks.")
+    loaded_summary = pd.DataFrame([
+        {"dataset": name, "rows": len(df), "columns": len(df.columns), "source": loaded_from.get(name, "unknown")}
+        for name, df in raw_data.items()
+    ]).sort_values("dataset")
+    st.dataframe(loaded_summary, use_container_width=True, hide_index=True)
+
+    st.info(
+        "If you want to use another dataset without uploading files every time, replace the four CSV files in the `data` folder, "
+        "or edit the `DATASET_FILES` block at the top of `streamlit_app.py`."
+    )
+
+    try:
+        with st.spinner("Running data quality checks. This can take a few seconds on the first run..."):
+            findings, samples, data = compute_findings(raw_data, accident_year)
+            missing_df = missing_profile(data)
+    except Exception as exc:
+        st.error("The input files were found, but the quality checks failed before the dashboard could be displayed.")
+        st.exception(exc)
+        st.stop()
 
     render_metric_cards(findings, data)
 
